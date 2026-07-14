@@ -1,1 +1,25 @@
+# dependencies
+/node_modules
 
+# Next.js
+/.next
+/out
+
+# local configuration
+.env
+.env.local
+.env.*.local
+
+# testing and tooling
+/coverage
+/playwright-report
+/test-results
+*.tsbuildinfo
+
+# operating systems and editors
+.DS_Store
+Thumbs.db
+.vscode
+
+# deployment
+.vercel
