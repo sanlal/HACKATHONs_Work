@@ -1,252 +1,187 @@
-# HACKATHONs_Work
+# JeevanDwaar
 
-## Complete Build Plan (Start to Submission)
+**One trusted platform connecting local workers and service providers to fair-paying jobs, farmers to direct buyers, and learners to affordable or donated books—all powered by GPT-5.6.**
 
-Project: **KaamSetu**  
-Vision: one platform for **direct jobs**, **direct farmer sales**, and **second-hand/donation books**.
+JeevanDwaar is a mobile-first, multilingual livelihood platform being built for [OpenAI Build Week](https://openai.devpost.com/). It brings three direct community marketplaces into one coherent experience:
 
----
+- **Local work and services:** workers discover clearly described, fair-paying opportunities and employers find available local talent.
+- **Farmer direct market:** farmers list produce, compare transparent buyer bids and choose the most suitable offer.
+- **Books for all:** people sell useful second-hand books or donate them directly to learners.
 
-## 1) Scope Lock (Most Important)
+## Current status
 
-Build only these 3 modules with one shared trust/payment layer:
+Day 1 foundation is complete:
 
-- **Module A: Work Marketplace** (urban + rural)
-- **Module B: Farmer Direct Market**
-- **Module C: Used Books + Donation**
-- **Shared Layer:** auth, profile verification, ratings, transaction history, notifications, multilingual support
+- Next.js 16, React 19 and TypeScript application scaffold
+- Mobile-first visual system and responsive landing page
+- Preview routes for work, produce and books
+- Multi-capability onboarding preview
+- Initial PostgreSQL schema, indexes and Row Level Security outline
+- Clearly labeled demonstration market benchmarks
+- English/Telugu-ready information architecture
 
-### Non-negotiable rule
-If any feature is not needed for demo flow, push it to “future roadmap.”
+The current marketplace cards contain seeded demonstration content. Authentication, persistent workflows and live GPT-5.6 calls are scheduled for the next milestones.
 
----
+## Product principles
 
-## 2) User Roles
+1. **Direct, not opaque:** show pay, bids, dates and counterparties clearly.
+2. **Assisted, not automated away:** GPT-5.6 explains and structures; people confirm decisions.
+3. **Inclusive by design:** mobile-first screens, plain language and English/Telugu support.
+4. **Truthful claims:** demo benchmarks, simulated payments and platform-earned badges are labeled accurately.
+5. **One account, many capabilities:** a person can work, hire, farm, buy produce or exchange books.
 
-- Worker
-- Employer
-- Farmer
-- Buyer (produce buyer)
-- Book Seller/Donor
-- Book Buyer/Requester
-- Admin (light, optional for MVP)
+## Day 1 experience
 
-One user can have multiple roles.
+| Route | Purpose |
+| --- | --- |
+| `/` | Product story, three marketplaces and visible AI value |
+| `/work` | Representative local work and service opportunities |
+| `/produce` | Farmer-to-buyer listings and bid-oriented product story |
+| `/books` | Used-book sale and donation discovery |
+| `/onboarding` | Multi-capability role selection preview |
 
----
+## Planned demo journeys
 
-## 3) Core User Journeys (Demo-critical)
+### Work
 
-### Journey 1: Job flow
-Employer posts job → workers matched → worker accepts → job completed → payment marked → both rate each other.
+Employer posts a function-hall role → suitable workers apply → employer assigns a worker → work is completed → activity and mutual reviews are recorded.
 
-### Journey 2: Farmer flow
-Farmer lists paddy produce → buyers place bids → farmer compares fair range + bids → accepts best bid → transaction logged.
+### Produce
 
-### Journey 3: Book flow
-Student lists used books or donation → nearby user requests/buys → handover/pickup confirmed → rating/thank-you record.
+Farmer lists Telangana paddy → buyers place comparable bids → farmer reviews price, quantity and pickup date → one bid is accepted → pickup and reviews are recorded.
 
----
+### Books
 
-## 4) 8-Day Execution Plan
+Owner offers a Class 10 book set for donation → learner requests it → owner accepts → both confirm handover → donation activity is recorded.
 
-### Day 1: Product + Design Freeze
-- Finalize feature list (MVP only)
-- Create wireframes for 8–10 key screens
-- Define DB schema and API contracts
-- Decide exact demo story (3 journeys above)
+## How GPT-5.6 will be used
 
-### Day 2: Foundation
-- Setup repo, auth, roles
-- Create base layout + navbar + role switch
-- Setup DB migrations/tables
-- Seed sample users/data
+- Convert short English or Telugu input into editable structured listings.
+- Explain deterministic job matches based on skills, location, availability and pay fit.
+- Explain produce-bid tradeoffs after totals are calculated in code.
+- Provide validated structured output with deterministic fallbacks.
 
-### Day 3: Work Module
-- Worker profile CRUD
-- Job post/create/list view
-- Apply/accept/reject logic
-- Status transitions (`open -> assigned -> completed`)
-- Basic rating after completion
+GPT-5.6 will not invent market prices, make final hiring decisions or publish content without user confirmation.
 
-### Day 4: Farmer Module
-- Produce listing create/list
-- Bidding flow
-- Accept bid
-- Fair price guidance placeholder + AI explanation
-- Transaction log entry
+## How Codex is being used
 
-### Day 5: Books Module
-- Book list create (sell/donate)
-- Filter by class/subject/location
-- Request/buy flow
-- Pickup/complete state
-- Donation success acknowledgment
+Codex is collaborating across the complete engineering workflow:
 
-### Day 6: Shared Value Features
-- Unified notifications
-- Unified wallet/history page (even mocked)
-- Multilingual text (English + Telugu)
-- Trust badges (simple rule-based)
+- product scope and architecture decisions;
+- Next.js foundation and responsive interface implementation;
+- database schema and RLS policy design;
+- workflow implementation and validation;
+- testing, debugging, documentation and deployment preparation.
 
-### Day 7: Polish + Testing + README
-- UI consistency pass
-- Bug fixing
-- End-to-end manual tests (all 3 journeys)
-- README + setup + API + demo credentials
-- Deployment
+Key product decisions remain human-directed: the three-marketplace scope, transparent benchmark labeling, deterministic match scoring, multi-role accounts and the decision to avoid unimplemented claims such as escrow or government verification.
 
-### Day 8: Submission Assets
-- Record 3-minute YouTube demo
-- Fill Devpost form
-- Add Codex/GPT-5.6 usage details
-- Final checklist and submit early
+## Technology
 
----
+- Next.js 16 and React 19
+- TypeScript
+- Tailwind CSS 4
+- Supabase PostgreSQL, Auth, Storage and Row Level Security
+- OpenAI GPT-5.6 API
+- Zod structured validation
+- Vercel deployment
+- Playwright end-to-end testing (planned)
 
-## 5) MVP Feature Matrix (Build vs Skip)
+## Local setup
 
-### Build now
-- Login/signup (or mocked OTP)
-- Role-based dashboard
-- Post/list/bid/apply/accept/complete flows
-- Ratings
-- Transaction history
-- Search + filters
-- Bilingual UI
+### Prerequisites
 
-### Skip for now
-- Full escrow
-- Advanced fraud engine
-- Complex analytics
-- Native mobile app
-- Full admin panel
+- Node.js 20.9 or newer
+- npm
+- A Supabase project
+- An OpenAI API key for AI features
 
----
+### Install and run
 
-## 6) Suggested Tech Architecture
+```bash
+git clone https://github.com/sanlal/HACKATHONs_Work.git
+cd HACKATHONs_Work
+npm install
+copy .env.example .env.local
+npm run dev
+```
 
-- **Frontend:** Next.js + Tailwind
-- **Backend:** Next API routes / Express
-- **DB:** PostgreSQL (Supabase/Neon)
-- **Auth:** Supabase Auth / Firebase
-- **Maps:** simple city+area first, GPS optional
-- **Payments:** mocked transaction + optional Razorpay test
-- **AI (GPT-5.6):**
-  - match explanation
-  - price guidance explanation
-  - multilingual listing helper
-- **Codex:** rapid coding, refactor, bug fixes, tests
+Open `http://localhost:3000`.
 
----
+On macOS or Linux, replace the `copy` command with:
 
-## 7) Data Model (Essential Tables)
+```bash
+cp .env.example .env.local
+```
 
-- `users`
-- `user_roles`
-- `worker_profiles`
-- `jobs`
-- `job_applications`
-- `produce_listings`
-- `produce_bids`
-- `book_listings`
-- `book_requests`
-- `transactions`
-- `reviews`
-- `notifications`
+### Environment variables
 
-Keep statuses as enums to avoid logic chaos.
+```text
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.6
+```
 
----
+Never commit `.env.local` or service-role/API secrets.
 
-## 8) API Plan (Minimum)
+### Database
 
-- Auth: `/auth/*`
-- Profile: `/profiles/*`
-- Jobs: `/jobs`, `/jobs/:id`, `/jobs/:id/apply`, `/jobs/:id/assign`, `/jobs/:id/complete`
-- Produce: `/produce`, `/produce/:id/bids`, `/produce/:id/accept-bid`
-- Books: `/books`, `/books/:id/request`, `/books/:id/complete`
-- Reviews: `/reviews`
-- Transactions: `/transactions`
-- AI helper: `/ai/match-explain`, `/ai/fair-price`, `/ai/listing-assist`
+The initial migration is in:
 
----
+```text
+supabase/migrations/202607140001_initial_schema.sql
+```
 
-## 9) UI Screens List (Build These First)
+The seed file contains explicitly labeled demo-only benchmark values:
 
-- Landing page
-- Role selection onboarding
-- Worker profile
-- Employer job post + job list
-- Job details + apply/accept
-- Farmer listing page
-- Buyer bid page
-- Books marketplace page
-- Transaction history page
-- Rating/review modal
-- Notifications panel
+```text
+supabase/seed.sql
+```
 
----
+For a linked Supabase CLI project:
 
-## 10) Uniqueness Strategy (Judge-facing)
+```bash
+supabase db push
+supabase db seed
+```
 
-Your uniqueness is not “many features.”  
-It is **one integrated livelihood platform** across:
+## Commands
 
-- income from work,
-- income from produce,
-- access to education resources (books).
+```bash
+npm run dev
+npm run lint
+npm run typecheck
+npm run build
+npm run start
+```
 
-Add one statement everywhere:
-**“From earning to learning: direct opportunities without middlemen.”**
+## Data and safety notes
 
----
+- Market benchmark values currently included in the repository are fictional demonstration data, not live mandi prices or financial advice.
+- Payment records will initially represent simulated or externally completed payments, not escrow.
+- “Trust” signals will come from transparent platform activity and community reviews, not government identity verification.
+- School-transport listings will require explicit document and reference fields before the workflow is demonstrated.
 
-## 11) Demo Script Plan (3 Minutes)
+## Delivery plan
 
-- 0:00–0:25 Problem + vision
-- 0:25–1:10 Job flow
-- 1:10–1:55 Farmer flow
-- 1:55–2:30 Books/donation flow
-- 2:30–2:50 GPT-5.6 + Codex usage
-- 2:50–3:00 Impact + next steps
+1. Foundation and schema
+2. Authentication, profiles and work workflow
+3. Farmer listings and bidding
+4. Book sale/donation and shared trust layer
+5. GPT-5.6 features and bilingual assistance
+6. Testing, accessibility, deployment and demo accounts
+7. Video, Devpost materials and final submission
 
----
+## Repository and submission
 
-## 12) Devpost Content Plan
+- Repository: <https://github.com/sanlal/HACKATHONs_Work>
+- Track: Apps for Your Life
+- License: MIT
+- Demo: deployment URL will be added after Day 6
+- Video: public YouTube URL will be added before submission
+- Codex `/feedback` session ID: will be added to the Devpost submission
 
-Prepare these before final day:
+## License
 
-- Problem
-- Solution
-- How built
-- AI/Codex usage
-- Challenges
-- Accomplishments
-- What next
-- Repo URL
-- YouTube demo
-- `/feedback` session ID
-
----
-
-## 13) Risk Control Plan
-
-- **Scope creep:** freeze features after Day 1
-- **Bugs late stage:** feature stop by Day 6 night
-- **Demo failure:** record backup walkthrough
-- **Timezone miss:** submit at least 6 hours early
-
----
-
-## 14) Daily Checklist (Use Every Night)
-
-- Is each module still end-to-end workable?
-- Any broken flow in core journeys?
-- Is AI usage visible and meaningful?
-- Is README updated with today’s changes?
-- Is tomorrow’s priority written clearly?
-
----
-
-If you want, next I’ll give you a **task-by-task coding checklist** (exact order of files/components/apis to build) so you can execute without confusion.
+Released under the [MIT License](LICENSE).
