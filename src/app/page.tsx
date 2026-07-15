@@ -63,7 +63,7 @@ export default function Home() {
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/onboarding"
+              href="/login"
               className="focus-ring inline-flex items-center justify-center gap-2 rounded-full bg-[#177245] px-7 py-4 font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#105c37]"
             >
               Open your doorway <ArrowRight aria-hidden="true" size={18} />

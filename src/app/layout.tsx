@@ -35,13 +35,14 @@ export default function RootLayout({
               <Link className="focus-ring rounded" href="/work">Find work</Link>
               <Link className="focus-ring rounded" href="/produce">Farm market</Link>
               <Link className="focus-ring rounded" href="/books">Books</Link>
+              <Link className="focus-ring rounded" href="/dashboard">Dashboard</Link>
             </nav>
 
             <Link
-              href="/onboarding"
+              href="/login"
               className="focus-ring rounded-full bg-[#102a43] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#177245]"
             >
-              Get started
+              Sign in
             </Link>
           </div>
         </header>
