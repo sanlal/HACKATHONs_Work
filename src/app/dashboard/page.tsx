@@ -17,6 +17,11 @@ import {
   WORK_DEMO_STORAGE_KEY,
   type WorkDemoState,
 } from "@/lib/work-demo";
+import {
+  initialProduceDemoState,
+  PRODUCE_DEMO_STORAGE_KEY,
+  type ProduceDemoState,
+} from "@/lib/produce-demo";
 
 type DemoProfile = {
   displayName: string;
@@ -37,10 +42,13 @@ export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<DemoProfile>(defaultProfile);
   const [workState, setWorkState] = useState<WorkDemoState>(initialWorkDemoState);
+  const [produceState, setProduceState] =
+    useState<ProduceDemoState>(initialProduceDemoState);
 
   useEffect(() => {
     const savedProfile = localStorage.getItem("jeevandwaar-demo-profile");
     const savedWork = localStorage.getItem(WORK_DEMO_STORAGE_KEY);
+    const savedProduce = localStorage.getItem(PRODUCE_DEMO_STORAGE_KEY);
 
     try {
       if (savedProfile) {
@@ -50,9 +58,13 @@ export default function DashboardPage() {
       if (savedWork) {
         setWorkState(JSON.parse(savedWork) as WorkDemoState);
       }
+      if (savedProduce) {
+        setProduceState(JSON.parse(savedProduce) as ProduceDemoState);
+      }
     } catch {
       localStorage.removeItem("jeevandwaar-demo-profile");
       localStorage.removeItem(WORK_DEMO_STORAGE_KEY);
+      localStorage.removeItem(PRODUCE_DEMO_STORAGE_KEY);
     }
 
     const supabase = getSupabaseBrowserClient();
@@ -94,9 +106,16 @@ export default function DashboardPage() {
     return {
       openJobs: workState.jobs.filter((job) => job.status === "open").length,
       applications: applications.length,
-      completed: workState.jobs.filter((job) => job.status === "completed").length,
+      openProduce: produceState.listings.filter(
+        (listing) => listing.status === "open",
+      ).length,
+      produceOffers: produceState.listings.flatMap((listing) => listing.bids)
+        .length,
+      completedProduce: produceState.listings.filter(
+        (listing) => listing.status === "completed",
+      ).length,
     };
-  }, [workState]);
+  }, [produceState, workState]);
 
   async function signOut() {
     localStorage.removeItem("jeevandwaar-demo-profile");
@@ -118,8 +137,8 @@ export default function DashboardPage() {
       href: "/produce",
       icon: Leaf,
       title: "Farmer market",
-      detail: "Produce bidding workflow arrives on Day 3.",
-      action: "View preview",
+      detail: `${summary.openProduce} open listings · ${summary.produceOffers} offers · ${summary.completedProduce} completed`,
+      action: "Open marketplace",
     },
     {
       href: "/books",
@@ -150,11 +169,12 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      <section className="mt-10 grid gap-4 sm:grid-cols-3">
+      <section className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Open jobs", summary.openJobs],
-          ["Applications", summary.applications],
-          ["Completed", summary.completed],
+          ["Work applications", summary.applications],
+          ["Produce listings", summary.openProduce],
+          ["Buyer offers", summary.produceOffers],
         ].map(([label, value]) => (
           <div className="card p-6" key={label}>
             <p className="text-sm font-semibold text-[#557089]">{label}</p>

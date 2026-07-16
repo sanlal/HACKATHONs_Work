@@ -10,17 +10,26 @@ JeevanDwaar is a mobile-first, multilingual livelihood platform being built for 
 
 ## Current status
 
-Day 1 foundation is complete:
+Day 3 is complete:
 
-- Next.js 16, React 19 and TypeScript application scaffold
-- Mobile-first visual system and responsive landing page
-- Preview routes for work, produce and books
-- Multi-capability onboarding preview
-- Initial PostgreSQL schema, indexes and Row Level Security outline
-- Clearly labeled demonstration market benchmarks
-- English/Telugu-ready information architecture
+- Supabase-ready email sign-up/sign-in and auth callback
+- No-credential interactive demo access
+- Persistent multi-capability profile onboarding
+- Dashboard with work and produce marketplace metrics
+- Complete local-work journey: post → apply → select → start → complete
+- Deterministic, transparent skill-match scoring
+- Complete produce journey: list → bid → compare → accept → confirm pickup
+- Transparent bid totals, benchmark differences and pickup terms
+- Clearly dated and labeled demonstration price benchmarks
+- Browser-persisted demo state with one-click reset
+- Auth bootstrap, RLS policies, guarded work and produce RPCs
 
-The current marketplace cards contain seeded demonstration content. Authentication, persistent workflows and live GPT-5.6 calls are scheduled for the next milestones.
+The work and farmer marketplaces are fully interactive in demo mode. When
+Supabase variables and migrations are configured, account and profile data use
+Supabase. The books page remains a preview for Day 4.
+
+See [Day 3 development notes](docs/DAY_3_DEVELOPMENT.md) for the newest changes,
+verification results and file-copy checklist.
 
 ## Product principles
 
@@ -30,15 +39,17 @@ The current marketplace cards contain seeded demonstration content. Authenticati
 4. **Truthful claims:** demo benchmarks, simulated payments and platform-earned badges are labeled accurately.
 5. **One account, many capabilities:** a person can work, hire, farm, buy produce or exchange books.
 
-## Day 1 experience
+## Application routes
 
 | Route | Purpose |
 | --- | --- |
 | `/` | Product story, three marketplaces and visible AI value |
-| `/work` | Representative local work and service opportunities |
-| `/produce` | Farmer-to-buyer listings and bid-oriented product story |
+| `/login` | Supabase authentication and interactive demo entry |
+| `/onboarding` | Persistent multi-capability profile setup |
+| `/dashboard` | Profile, work metrics and marketplace status |
+| `/work` | Interactive worker/employer workflow |
+| `/produce` | Interactive farmer/buyer bidding and pickup workflow |
 | `/books` | Used-book sale and donation discovery |
-| `/onboarding` | Multi-capability role selection preview |
 
 ## Planned demo journeys
 
@@ -107,6 +118,11 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+Select **Enter interactive demo** on `/login` to test complete workflows without
+external credentials. In `/work`, switch between worker and employer views. In
+`/produce`, switch between farmer and buyer views to list, bid, compare, accept
+and complete a pickup.
+
 On macOS or Linux, replace the `copy` command with:
 
 ```bash
@@ -127,10 +143,12 @@ Never commit `.env.local` or service-role/API secrets.
 
 ### Database
 
-The initial migration is in:
+Run migrations in filename order:
 
 ```text
 supabase/migrations/202607140001_initial_schema.sql
+supabase/migrations/202607150001_auth_and_workflow.sql
+supabase/migrations/202607150002_produce_workflow.sql
 ```
 
 The seed file contains explicitly labeled demo-only benchmark values:
@@ -165,9 +183,9 @@ npm run start
 
 ## Delivery plan
 
-1. Foundation and schema
-2. Authentication, profiles and work workflow
-3. Farmer listings and bidding
+1. Foundation and schema — complete
+2. Authentication, profiles and work workflow — complete
+3. Farmer listings and bidding — complete
 4. Book sale/donation and shared trust layer
 5. GPT-5.6 features and bilingual assistance
 6. Testing, accessibility, deployment and demo accounts
