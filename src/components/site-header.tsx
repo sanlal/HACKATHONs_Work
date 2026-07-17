@@ -36,7 +36,7 @@ export function SiteHeader() {
           <span className="grid size-10 place-items-center rounded-xl bg-[#177245] text-white">
             <DoorOpen aria-hidden="true" size={22} />
           </span>
-          <span className="text-xl">
+          <span className="hidden text-xl sm:inline">
             Jeevan<span className="text-[#177245]">Dwaar</span>
           </span>
         </Link>

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -45,6 +46,9 @@ const signals = [
   { icon: MapPin, text: "Local, location-aware discovery" },
   { icon: ShieldCheck, text: "Community ratings and clear records" },
 ];
+
+const communityImage =
+  "https://raw.githubusercontent.com/sanlal/HACKATHONs_Work/main/ChatGPT%20Image%20Jul%2014%2C%202026%2C%2005_42_07%20PM.png";
 
 export default function Home() {
   return (
@@ -112,6 +116,27 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section
+        aria-label="JeevanDwaar community overview"
+        className="shell pb-16 lg:pb-24"
+      >
+        <div className="card overflow-hidden p-2 sm:p-3">
+          <Image
+            alt="JeevanDwaar connecting local workers, farmers and learners through one trusted platform"
+            className="h-auto w-full rounded-[1.15rem]"
+            height={682}
+            priority
+            sizes="(max-width: 1180px) 100vw, 1180px"
+            src={communityImage}
+            width={1024}
+          />
+        </div>
+        <p className="mt-4 text-center text-sm font-semibold text-[#557089]">
+          Local opportunity, fairer markets and shared knowledge—through one
+          trusted doorway.
+        </p>
       </section>
 
       <section aria-label="Platform qualities" className="border-y border-[#dce5e1] bg-white">
