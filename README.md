@@ -10,7 +10,7 @@ JeevanDwaar is a mobile-first, multilingual livelihood platform being built for 
 
 ## Current status
 
-Day 3 is complete:
+Day 4 is complete:
 
 - Supabase-ready email sign-up/sign-in and auth callback
 - No-credential interactive demo access
@@ -21,14 +21,17 @@ Day 3 is complete:
 - Complete produce journey: list → bid → compare → accept → confirm pickup
 - Transparent bid totals, benchmark differences and pickup terms
 - Clearly dated and labeled demonstration price benchmarks
+- Complete books journey: list → search → request → select → handover
+- Used-book sale and free-donation modes
+- Activity-earned ratings, completion counts and fulfilled-donor signals
 - Browser-persisted demo state with one-click reset
-- Auth bootstrap, RLS policies, guarded work and produce RPCs
+- Auth bootstrap, RLS policies, guarded work, produce and books RPCs
 
-The work and farmer marketplaces are fully interactive in demo mode. When
-Supabase variables and migrations are configured, account and profile data use
-Supabase. The books page remains a preview for Day 4.
+All three marketplaces are fully interactive in demo mode. When Supabase
+variables and migrations are configured, account and profile data use
+Supabase. Live GPT-5.6 functionality is the next milestone.
 
-See [Day 3 development notes](docs/DAY_3_DEVELOPMENT.md) for the newest changes,
+See [Day 4 development notes](docs/DAY_4_DEVELOPMENT.md) for the newest changes,
 verification results and file-copy checklist.
 
 ## Product principles
@@ -49,7 +52,7 @@ verification results and file-copy checklist.
 | `/dashboard` | Profile, work metrics and marketplace status |
 | `/work` | Interactive worker/employer workflow |
 | `/produce` | Interactive farmer/buyer bidding and pickup workflow |
-| `/books` | Used-book sale and donation discovery |
+| `/books` | Interactive used-book sale and donation workflow |
 
 ## Planned demo journeys
 
@@ -121,7 +124,8 @@ Open `http://localhost:3000`.
 Select **Enter interactive demo** on `/login` to test complete workflows without
 external credentials. In `/work`, switch between worker and employer views. In
 `/produce`, switch between farmer and buyer views to list, bid, compare, accept
-and complete a pickup.
+and complete a pickup. In `/books`, switch between learner and owner views to
+search, request, select and complete a handover.
 
 On macOS or Linux, replace the `copy` command with:
 
@@ -149,6 +153,7 @@ Run migrations in filename order:
 supabase/migrations/202607140001_initial_schema.sql
 supabase/migrations/202607150001_auth_and_workflow.sql
 supabase/migrations/202607150002_produce_workflow.sql
+supabase/migrations/202607160001_books_and_trust.sql
 ```
 
 The seed file contains explicitly labeled demo-only benchmark values:
@@ -186,7 +191,7 @@ npm run start
 1. Foundation and schema — complete
 2. Authentication, profiles and work workflow — complete
 3. Farmer listings and bidding — complete
-4. Book sale/donation and shared trust layer
+4. Book sale/donation and shared trust layer — complete
 5. GPT-5.6 features and bilingual assistance
 6. Testing, accessibility, deployment and demo accounts
 7. Video, Devpost materials and final submission

@@ -9,6 +9,7 @@ import {
   BriefcaseBusiness,
   Leaf,
   LogOut,
+  ShieldCheck,
   UserRound,
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -22,6 +23,11 @@ import {
   PRODUCE_DEMO_STORAGE_KEY,
   type ProduceDemoState,
 } from "@/lib/produce-demo";
+import {
+  BOOKS_DEMO_STORAGE_KEY,
+  initialBooksDemoState,
+  type BooksDemoState,
+} from "@/lib/books-demo";
 
 type DemoProfile = {
   displayName: string;
@@ -44,11 +50,14 @@ export default function DashboardPage() {
   const [workState, setWorkState] = useState<WorkDemoState>(initialWorkDemoState);
   const [produceState, setProduceState] =
     useState<ProduceDemoState>(initialProduceDemoState);
+  const [booksState, setBooksState] =
+    useState<BooksDemoState>(initialBooksDemoState);
 
   useEffect(() => {
     const savedProfile = localStorage.getItem("jeevandwaar-demo-profile");
     const savedWork = localStorage.getItem(WORK_DEMO_STORAGE_KEY);
     const savedProduce = localStorage.getItem(PRODUCE_DEMO_STORAGE_KEY);
+    const savedBooks = localStorage.getItem(BOOKS_DEMO_STORAGE_KEY);
 
     try {
       if (savedProfile) {
@@ -61,10 +70,14 @@ export default function DashboardPage() {
       if (savedProduce) {
         setProduceState(JSON.parse(savedProduce) as ProduceDemoState);
       }
+      if (savedBooks) {
+        setBooksState(JSON.parse(savedBooks) as BooksDemoState);
+      }
     } catch {
       localStorage.removeItem("jeevandwaar-demo-profile");
       localStorage.removeItem(WORK_DEMO_STORAGE_KEY);
       localStorage.removeItem(PRODUCE_DEMO_STORAGE_KEY);
+      localStorage.removeItem(BOOKS_DEMO_STORAGE_KEY);
     }
 
     const supabase = getSupabaseBrowserClient();
@@ -106,6 +119,8 @@ export default function DashboardPage() {
     return {
       openJobs: workState.jobs.filter((job) => job.status === "open").length,
       applications: applications.length,
+      completedWork: workState.jobs.filter((job) => job.status === "completed")
+        .length,
       openProduce: produceState.listings.filter(
         (listing) => listing.status === "open",
       ).length,
@@ -114,8 +129,20 @@ export default function DashboardPage() {
       completedProduce: produceState.listings.filter(
         (listing) => listing.status === "completed",
       ).length,
+      openBooks: booksState.listings.filter(
+        (listing) => listing.status === "open",
+      ).length,
+      bookRequests: booksState.listings.flatMap((listing) => listing.requests)
+        .length,
+      completedBooks: booksState.listings.filter(
+        (listing) => listing.status === "completed",
+      ).length,
+      fulfilledDonations: booksState.listings.filter(
+        (listing) =>
+          listing.status === "completed" && listing.mode === "donate",
+      ).length,
     };
-  }, [produceState, workState]);
+  }, [booksState, produceState, workState]);
 
   async function signOut() {
     localStorage.removeItem("jeevandwaar-demo-profile");
@@ -144,8 +171,8 @@ export default function DashboardPage() {
       href: "/books",
       icon: BookOpen,
       title: "Books for all",
-      detail: "Sale and donation workflow arrives on Day 4.",
-      action: "View preview",
+      detail: `${summary.openBooks} available books · ${summary.bookRequests} requests · ${summary.completedBooks} completed`,
+      action: "Open marketplace",
     },
   ];
 
@@ -172,9 +199,12 @@ export default function DashboardPage() {
       <section className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Open jobs", summary.openJobs],
-          ["Work applications", summary.applications],
           ["Produce listings", summary.openProduce],
-          ["Buyer offers", summary.produceOffers],
+          ["Available books", summary.openBooks],
+          [
+            "Direct responses",
+            summary.applications + summary.produceOffers + summary.bookRequests,
+          ],
         ].map(([label, value]) => (
           <div className="card p-6" key={label}>
             <p className="text-sm font-semibold text-[#557089]">{label}</p>
@@ -203,28 +233,44 @@ export default function DashboardPage() {
       <section className="card mt-10 grid gap-7 p-7 lg:grid-cols-[0.7fr_1.3fr]">
         <div>
           <span className="grid size-11 place-items-center rounded-xl bg-[#eef7f1] text-[#177245]">
-            <UserRound size={21} />
+            <ShieldCheck size={21} />
           </span>
-          <h2 className="mt-5 text-xl font-bold">Profile capabilities</h2>
+          <h2 className="mt-5 text-xl font-bold">Activity-earned trust</h2>
           <p className="mt-3 text-sm leading-6 text-[#557089]">
-            One profile can participate in more than one marketplace.
+            Signals come from completed platform activity—not identity
+            verification.
           </p>
           <Link
             className="focus-ring mt-5 inline-block rounded text-sm font-bold text-[#177245]"
             href="/onboarding"
           >
-            Update profile
+            Manage profile
           </Link>
         </div>
-        <div className="flex flex-wrap content-start gap-2">
-          {profile.capabilities.map((capability) => (
+        <div>
+          <div className="flex flex-wrap content-start gap-2">
             <span
-              className="rounded-full border border-[#b9ddc5] bg-[#eef7f1] px-4 py-2 text-sm font-bold capitalize text-[#11663b]"
-              key={capability}
+              className="rounded-full border border-[#b9ddc5] bg-[#eef7f1] px-4 py-2 text-sm font-bold text-[#11663b]"
             >
-              {capability.replace("_", " ")}
+              {summary.completedWork + summary.completedProduce + summary.completedBooks} completed exchanges
             </span>
-          ))}
+            <span className="rounded-full border border-[#d4c2e7] bg-[#f7f1fb] px-4 py-2 text-sm font-bold text-[#62358c]">
+              {summary.fulfilledDonations} fulfilled donations
+            </span>
+          </div>
+          <div className="mt-5 flex flex-wrap content-start gap-2">
+            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#557089]">
+              <UserRound size={14} /> Capabilities
+            </span>
+            {profile.capabilities.map((capability) => (
+              <span
+                className="rounded-full border border-[#dce5e1] px-3 py-1 text-xs font-bold capitalize text-[#557089]"
+                key={capability}
+              >
+                {capability.replace("_", " ")}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
     </main>
