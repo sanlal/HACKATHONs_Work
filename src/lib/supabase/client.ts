@@ -4,14 +4,19 @@ import {
   supabaseAnonKey,
   supabaseUrl,
 } from "./config";
+import type { Database } from "./database.types";
 
-let browserClient: ReturnType<typeof createBrowserClient> | null = null;
+let browserClient: ReturnType<typeof createBrowserClient<Database>> | null =
+  null;
 
 export function getSupabaseBrowserClient() {
   if (!isSupabaseConfigured) {
     return null;
   }
 
-  browserClient ??= createBrowserClient(supabaseUrl, supabaseAnonKey);
+  browserClient ??= createBrowserClient<Database>(
+    supabaseUrl,
+    supabaseAnonKey,
+  );
   return browserClient;
 }

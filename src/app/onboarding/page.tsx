@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
@@ -11,6 +11,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { UserCapability } from "@/lib/supabase/database.types";
 
 const capabilities = [
   { value: "worker", icon: UserRound, title: "Find work", detail: "Offer skills and services." },
@@ -27,11 +28,50 @@ export default function OnboardingPage() {
   const [city, setCity] = useState("Hyderabad");
   const [area, setArea] = useState("");
   const [language, setLanguage] = useState<"en" | "te">("en");
-  const [selected, setSelected] = useState<string[]>(["worker"]);
+  const [selected, setSelected] = useState<UserCapability[]>(["worker"]);
+  const [workerHeadline, setWorkerHeadline] = useState("Local service professional");
+  const [workerSkills, setWorkerSkills] = useState(
+    "Event service, Guest support",
+  );
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  function toggleCapability(value: string) {
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const [profileResult, capabilitiesResult, workerResult] =
+        await Promise.all([
+          supabase.from("profiles").select("*").eq("id", data.user.id).single(),
+          supabase
+            .from("user_capabilities")
+            .select("capability")
+            .eq("user_id", data.user.id),
+          supabase
+            .from("worker_profiles")
+            .select("*")
+            .eq("user_id", data.user.id)
+            .maybeSingle(),
+        ]);
+      if (profileResult.data) {
+        setDisplayName(profileResult.data.display_name);
+        setCity(profileResult.data.city);
+        setArea(profileResult.data.area ?? "");
+        setLanguage(profileResult.data.preferred_language as "en" | "te");
+      }
+      if (capabilitiesResult.data?.length) {
+        setSelected(capabilitiesResult.data.map((item) => item.capability));
+      }
+      if (workerResult.data) {
+        setWorkerHeadline(workerResult.data.headline);
+        setWorkerSkills(workerResult.data.skills.join(", "));
+      }
+    });
+  }, []);
+
+  function toggleCapability(value: UserCapability) {
     setSelected((current) =>
       current.includes(value)
         ? current.filter((item) => item !== value)
@@ -55,6 +95,11 @@ export default function OnboardingPage() {
       area: area.trim(),
       language,
       capabilities: selected,
+      workerHeadline: workerHeadline.trim(),
+      workerSkills: workerSkills
+        .split(",")
+        .map((skill) => skill.trim())
+        .filter(Boolean),
     };
     const supabase = getSupabaseBrowserClient();
 
@@ -74,13 +119,16 @@ export default function OnboardingPage() {
       return;
     }
 
-    const { error: profileError } = await supabase.from("profiles").upsert({
-      id: user.id,
-      display_name: profile.displayName,
-      city: profile.city,
-      area: profile.area || null,
-      preferred_language: profile.language,
-    });
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        display_name: profile.displayName,
+        city: profile.city,
+        area: profile.area || null,
+        preferred_language: profile.language,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
 
     if (profileError) {
       setMessage(profileError.message);
@@ -106,6 +154,22 @@ export default function OnboardingPage() {
       setMessage(capabilityError.message);
       setBusy(false);
       return;
+    }
+
+    if (selected.includes("worker")) {
+      const { error: workerError } = await supabase
+        .from("worker_profiles")
+        .upsert({
+          user_id: user.id,
+          headline: profile.workerHeadline || "Local service professional",
+          skills: profile.workerSkills,
+          service_areas: profile.area ? [profile.area] : [],
+        });
+      if (workerError) {
+        setMessage(workerError.message);
+        setBusy(false);
+        return;
+      }
     }
 
     router.push("/dashboard");
@@ -167,6 +231,31 @@ export default function OnboardingPage() {
           </label>
         </div>
 
+        {selected.includes("worker") && (
+          <div className="card mt-6 grid gap-5 p-6 md:grid-cols-2 md:p-8">
+            <label className="grid gap-2 text-sm font-bold">
+              Worker headline
+              <input
+                className="rounded-xl border border-[#c9d7d1] px-4 py-3 font-normal outline-none focus:border-[#177245]"
+                minLength={5}
+                onChange={(event) => setWorkerHeadline(event.target.value)}
+                required
+                value={workerHeadline}
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-bold">
+              Skills, separated by commas
+              <input
+                className="rounded-xl border border-[#c9d7d1] px-4 py-3 font-normal outline-none focus:border-[#177245]"
+                minLength={3}
+                onChange={(event) => setWorkerSkills(event.target.value)}
+                required
+                value={workerSkills}
+              />
+            </label>
+          </div>
+        )}
+
         <h2 className="mt-10 text-xl font-bold">I want to…</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {capabilities.map(({ value, icon: Icon, title, detail }) => {
@@ -195,7 +284,10 @@ export default function OnboardingPage() {
         </div>
 
         {message && (
-          <p className="mt-5 rounded-xl bg-[#fff3cf] px-4 py-3 text-sm text-[#765409]">
+          <p
+            aria-live="polite"
+            className="mt-5 rounded-xl bg-[#fff3cf] px-4 py-3 text-sm text-[#765409]"
+          >
             {message}
           </p>
         )}

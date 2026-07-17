@@ -5,9 +5,10 @@
 ```text
 Browser
   -> Next.js App Router
-     -> Server actions / route handlers
-        -> Supabase Auth + PostgreSQL + Storage
-        -> OpenAI GPT-5.6
+     -> Typed Supabase browser client
+        -> Supabase Auth + PostgreSQL + RLS/RPCs
+     -> Next.js AI route handler
+        -> OpenAI GPT-5.6 Responses API
 ```
 
 The browser receives only the public Supabase URL and anonymous key. OpenAI and Supabase service-role credentials remain server-only.
@@ -20,7 +21,7 @@ The browser receives only the public Supabase URL and anonymous key. OpenAI and 
 
 ### Work
 
-`worker_profiles` describes skills and preferences. `jobs` belongs to an employer and `job_applications` links workers to jobs. State transitions will be validated server-side.
+`worker_profiles` describes skills and preferences. `jobs` belongs to an employer and `job_applications` links workers to jobs. Guarded PostgreSQL RPCs validate acceptance and lifecycle transitions.
 
 ### Produce
 
@@ -30,25 +31,27 @@ The browser receives only the public Supabase URL and anonymous key. OpenAI and 
 
 `book_listings` supports sale and donation modes. `book_requests` records interest and handover state.
 
-## Initial API contracts
+## Implemented API contract
 
-The implementation will prefer typed server actions for mutations and route handlers for AI requests.
+Marketplace discovery uses typed Supabase queries under RLS. Important mutations
+use guarded PostgreSQL RPCs. AI uses one validated server route.
 
 ```text
-POST /api/ai/listing-assist
-input:  { domain, language, description }
-output: { fields, missingFields, warnings }
-
-POST /api/ai/match-explanation
-input:  { jobId, workerId, deterministicScore, factors }
-output: { explanation }
-
-POST /api/ai/bid-explanation
-input:  { listingId, benchmark, bidsWithCalculatedTotals }
-output: { comparison, warnings }
+POST /api/ai/assist
+input:  { domain, mode, language, input, context }
+output: { data, source, model }
 ```
 
-All AI outputs will be validated with Zod. Invalid or unavailable model responses fall back to deterministic copy.
+All AI inputs and outputs are validated with Zod. Invalid or unavailable model
+responses fall back to deterministic copy with an explicit source badge.
+
+## Operating modes
+
+- **Live:** authenticated users query and mutate Supabase.
+- **Demo:** users without credentials complete the same fictional journeys in
+  browser localStorage.
+- The UI labels the active mode and never synchronizes demo records to the live
+  database.
 
 ## Workflow invariants
 

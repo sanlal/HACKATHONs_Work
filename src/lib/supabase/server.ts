@@ -5,6 +5,7 @@ import {
   supabaseAnonKey,
   supabaseUrl,
 } from "./config";
+import type { Database } from "./database.types";
 
 export async function getSupabaseServerClient() {
   if (!isSupabaseConfigured) {
@@ -13,7 +14,7 @@ export async function getSupabaseServerClient() {
 
   const cookieStore = await cookies();
 
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+  return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

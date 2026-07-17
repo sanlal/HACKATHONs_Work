@@ -6,13 +6,13 @@ import { ArrowRight, LockKeyhole, Sparkles } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
-export function LoginForm() {
+export function LoginForm({ initialMessage = "" }: { initialMessage?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialMessage);
   const [busy, setBusy] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -58,7 +58,11 @@ export function LoginForm() {
       if (error) {
         setMessage(error.message);
       } else {
-        router.push("/dashboard");
+        const { data: capabilities } = await supabase
+          .from("user_capabilities")
+          .select("capability")
+          .limit(1);
+        router.push(capabilities?.length ? "/dashboard" : "/onboarding");
         router.refresh();
       }
     }
@@ -66,14 +70,24 @@ export function LoginForm() {
     setBusy(false);
   }
 
-  function enterDemo() {
+  async function enterDemo() {
+    await fetch("/api/demo/session", { method: "POST" });
+    document.cookie =
+      "jeevandwaar-demo=1; path=/; max-age=28800; SameSite=Lax";
     localStorage.setItem(
       "jeevandwaar-demo-profile",
       JSON.stringify({
         displayName: "Demo Community Member",
         city: "Hyderabad",
         language: "en",
-        capabilities: ["worker", "employer"],
+        capabilities: [
+          "worker",
+          "employer",
+          "farmer",
+          "produce_buyer",
+          "book_owner",
+          "book_requester",
+        ],
       }),
     );
     router.push("/dashboard");
@@ -86,7 +100,7 @@ export function LoginForm() {
           <LockKeyhole aria-hidden="true" size={23} />
         </span>
         <span className="rounded-full bg-[#fff3cf] px-3 py-1 text-xs font-bold text-[#765409]">
-          Day 2
+          Interactive demo
         </span>
       </div>
 

@@ -24,6 +24,17 @@ import {
   type BooksDemoState,
   type DemoBookListing,
 } from "@/lib/books-demo";
+import { AiAssistant } from "@/components/ai/ai-assistant";
+import type { AiSuggestion } from "@/lib/ai/schemas";
+import {
+  acceptLiveBookRequest,
+  confirmLiveBookHandover,
+  createLiveBookListing,
+  loadLiveBooks,
+  requestLiveBook,
+} from "@/lib/supabase/marketplaces";
+import { useMarketplaceSession } from "@/lib/supabase/use-marketplace-session";
+import { useLanguage } from "@/components/i18n/language-provider";
 
 function statusClass(status: DemoBookListing["status"]) {
   if (status === "completed") return "bg-[#e5f6eb] text-[#11663b]";
@@ -33,8 +44,11 @@ function statusClass(status: DemoBookListing["status"]) {
 }
 
 export function BooksMarketplace() {
+  const { text } = useLanguage();
+  const session = useMarketplaceSession();
   const [role, setRole] = useState<"owner" | "requester">("requester");
   const [state, setState] = useState<BooksDemoState>(initialBooksDemoState);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [modeFilter, setModeFilter] = useState<"all" | BookMode>("all");
   const [showForm, setShowForm] = useState(false);
@@ -54,17 +68,44 @@ export function BooksMarketplace() {
   const [requestMessage, setRequestMessage] = useState("");
 
   useEffect(() => {
+    if (session.loading) return;
+    if (session.mode === "live") {
+      loadLiveBooks()
+        .then((liveState) => {
+          setState(liveState);
+          setLoading(false);
+        })
+        .catch((error: Error) => {
+          setNotice(error.message);
+          setLoading(false);
+        });
+      return;
+    }
+
     const saved = localStorage.getItem(BOOKS_DEMO_STORAGE_KEY);
-    if (!saved) return;
+    if (!saved) {
+      queueMicrotask(() => setLoading(false));
+      return;
+    }
 
     try {
       // Restoring browser-owned demo state after hydration is intentional.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setState(JSON.parse(saved) as BooksDemoState);
+      const restored = JSON.parse(saved) as BooksDemoState;
+      queueMicrotask(() => setState(restored));
     } catch {
       localStorage.removeItem(BOOKS_DEMO_STORAGE_KEY);
     }
-  }, []);
+    queueMicrotask(() => setLoading(false));
+  }, [session.loading, session.mode]);
+
+  async function reloadLive() {
+    setLoading(true);
+    try {
+      setState(await loadLiveBooks());
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function commit(update: (current: BooksDemoState) => BooksDemoState) {
     setState((current) => {
@@ -75,14 +116,65 @@ export function BooksMarketplace() {
   }
 
   function resetDemo() {
+    if (session.mode === "live") {
+      void reloadLive();
+      setNotice("Live books data refreshed.");
+      return;
+    }
     localStorage.removeItem(BOOKS_DEMO_STORAGE_KEY);
     setState(initialBooksDemoState);
     setActiveRequest(null);
     setNotice("Books demo reset to its starting state.");
   }
 
-  function createListing(event: FormEvent<HTMLFormElement>) {
+  function applyAiSuggestions(suggestions: AiSuggestion[]) {
+    const fields = Object.fromEntries(
+      suggestions.map((suggestion) => [suggestion.field, suggestion.value]),
+    );
+    if (fields.title) setTitle(fields.title);
+    if (fields.author) setAuthor(fields.author);
+    if (fields.courseOrClass) setCourseOrClass(fields.courseOrClass);
+    if (fields.subject) setSubject(fields.subject);
+    if (fields.language) setLanguage(fields.language);
+    if (fields.mode === "sell" || fields.mode === "donate") setMode(fields.mode);
+    if (fields.price) setPrice(fields.price);
+    if (fields.area) setArea(fields.area);
+    setNotice("AI suggestions applied. Review every field before publishing.");
+  }
+
+  async function createListing(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (session.mode === "live") {
+      try {
+        await createLiveBookListing({
+          userId: session.userId,
+          title: title.trim(),
+          author: author.trim(),
+          courseOrClass: courseOrClass.trim(),
+          subject: subject.trim(),
+          language,
+          condition,
+          mode,
+          price: mode === "sell" ? Number(price) : null,
+          city: session.profile.city,
+          area: area.trim(),
+        });
+        await reloadLive();
+        setShowForm(false);
+        setTitle("");
+        setAuthor("");
+        setCourseOrClass("");
+        setSubject("");
+        setArea("");
+        setNotice("Book published to the live marketplace.");
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not list book.",
+        );
+      }
+      return;
+    }
+
     const listing: DemoBookListing = {
       id: `book-${Date.now()}`,
       ownerId: DEMO_BOOK_OWNER_ID,
@@ -125,9 +217,23 @@ export function BooksMarketplace() {
     setNotice("Book listed. Switch to learner view to request it.");
   }
 
-  function requestBook(event: FormEvent<HTMLFormElement>) {
+  async function requestBook(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeRequest) return;
+    if (session.mode === "live") {
+      try {
+        await requestLiveBook(activeRequest, requestMessage.trim());
+        await reloadLive();
+        setActiveRequest(null);
+        setRequestMessage("");
+        setNotice("Request sent through the guarded Supabase workflow.");
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not request book.",
+        );
+      }
+      return;
+    }
 
     commit((current) => ({
       ...current,
@@ -170,7 +276,20 @@ export function BooksMarketplace() {
     setNotice("Request sent directly to the book owner.");
   }
 
-  function acceptRequest(listingId: string, requestId: string) {
+  async function acceptRequest(listingId: string, requestId: string) {
+    if (session.mode === "live") {
+      try {
+        await acceptLiveBookRequest(requestId);
+        await reloadLive();
+        setNotice("Recipient selected. Both participants must confirm handover.");
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not accept request.",
+        );
+      }
+      return;
+    }
+
     commit((current) => ({
       ...current,
       listings: current.listings.map((listing) =>
@@ -203,7 +322,22 @@ export function BooksMarketplace() {
     setNotice("Recipient selected. Arrange the handover directly.");
   }
 
-  function completeHandover(listingId: string) {
+  async function completeHandover(listingId: string) {
+    if (session.mode === "live") {
+      try {
+        await confirmLiveBookHandover(listingId);
+        await reloadLive();
+        setNotice(
+          "Your handover confirmation was recorded. Completion occurs after both participants confirm.",
+        );
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not confirm handover.",
+        );
+      }
+      return;
+    }
+
     commit((current) => {
       const listing = current.listings.find((item) => item.id === listingId);
       return {
@@ -242,13 +376,23 @@ export function BooksMarketplace() {
     setNotice("Handover completed and community trust activity recorded.");
   }
 
+  const activeOwnerId =
+    session.mode === "live" ? session.userId : DEMO_BOOK_OWNER_ID;
+  const activeRequesterId =
+    session.mode === "live" ? session.userId : DEMO_BOOK_REQUESTER_ID;
   const visibleListings = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return state.listings.filter((listing) => {
-      if (role === "owner" && listing.ownerId !== DEMO_BOOK_OWNER_ID) {
+      if (role === "owner" && listing.ownerId !== activeOwnerId) {
         return false;
       }
-      if (role === "requester" && listing.status !== "open") {
+      if (
+        role === "requester" &&
+        listing.status !== "open" &&
+        !listing.requests.some(
+          (request) => request.requesterId === activeRequesterId,
+        )
+      ) {
         return false;
       }
       if (modeFilter !== "all" && listing.mode !== modeFilter) return false;
@@ -262,14 +406,21 @@ export function BooksMarketplace() {
         listing.area,
       ].some((value) => value.toLowerCase().includes(normalized));
     });
-  }, [modeFilter, query, role, state.listings]);
+  }, [
+    activeOwnerId,
+    activeRequesterId,
+    modeFilter,
+    query,
+    role,
+    state.listings,
+  ]);
 
   return (
     <main className="shell min-h-[76vh] py-12 lg:py-18">
       <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
         <div className="max-w-3xl">
           <p className="eyebrow mb-4">Interactive books marketplace</p>
-          <h1 className="section-title">Every useful book deserves another reader.</h1>
+          <h1 className="section-title">{text("booksTitle")}</h1>
           <p className="mt-5 text-lg leading-8 text-[#557089]">
             Sell affordable books or donate them directly, with transparent
             requests and trust earned through completed exchanges.
@@ -280,7 +431,8 @@ export function BooksMarketplace() {
           onClick={resetDemo}
           type="button"
         >
-          <RefreshCw size={16} /> Reset demo
+          <RefreshCw size={16} />{" "}
+          {session.mode === "live" ? text("refreshLive") : text("resetDemo")}
         </button>
       </div>
 
@@ -288,6 +440,7 @@ export function BooksMarketplace() {
         <div className="inline-flex rounded-full border border-[#c9d7d1] bg-white p-1">
           {(["requester", "owner"] as const).map((item) => (
             <button
+              aria-pressed={role === item}
               className={`focus-ring rounded-full px-5 py-2.5 text-sm font-bold capitalize ${
                 role === item ? "bg-[#62358c] text-white" : "text-[#557089]"
               }`}
@@ -299,14 +452,24 @@ export function BooksMarketplace() {
               }}
               type="button"
             >
-              {item === "requester" ? "Learner view" : "Owner view"}
+              {text(item === "requester" ? "learnerView" : "ownerView")}
             </button>
           ))}
         </div>
         <span className="text-sm text-[#557089]">
-          {role === "owner" ? "Signed in as Meena Sharma" : "Signed in as Rahul"}
+          {session.mode === "live"
+            ? `Live Supabase · ${session.profile.display_name}`
+            : role === "owner"
+              ? "Browser demo · Meena Sharma"
+              : "Browser demo · Rahul"}
         </span>
       </div>
+
+      {loading && (
+        <p className="mt-6 text-sm font-semibold text-[#557089]" role="status">
+          Loading books marketplace…
+        </p>
+      )}
 
       {notice && (
         <p
@@ -328,10 +491,19 @@ export function BooksMarketplace() {
           </button>
 
           {showForm && (
-            <form
-              className="card mt-5 grid gap-5 p-6 md:grid-cols-2 md:p-8"
-              onSubmit={createListing}
-            >
+            <>
+              <div className="mt-5">
+                <AiAssistant
+                  domain="books"
+                  onApply={applyAiSuggestions}
+                  placeholder="Example: I want to donate my English Class 10 Telangana textbook set in Kukatpally. The books are in good condition."
+                  title="Describe the book naturally"
+                />
+              </div>
+              <form
+                className="card mt-5 grid gap-5 p-6 md:grid-cols-2 md:p-8"
+                onSubmit={createListing}
+              >
               <label className="grid gap-2 text-sm font-bold md:col-span-2">
                 Book title
                 <input
@@ -436,7 +608,8 @@ export function BooksMarketplace() {
               >
                 Publish book listing
               </button>
-            </form>
+              </form>
+            </>
           )}
         </section>
       )}
@@ -474,7 +647,7 @@ export function BooksMarketplace() {
         <div className="grid content-start gap-5">
           {visibleListings.map((listing) => {
             const ownRequest = listing.requests.find(
-              (request) => request.requesterId === DEMO_BOOK_REQUESTER_ID,
+              (request) => request.requesterId === activeRequesterId,
             );
             const selectedRequest = listing.requests.find(
               (request) => request.id === listing.selectedRequestId,

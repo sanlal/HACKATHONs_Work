@@ -20,6 +20,22 @@ html {
   scroll-behavior: smooth;
 }
 
+.skip-link {
+  background: var(--ink);
+  border-radius: 0 0 0.75rem 0;
+  color: white;
+  left: 0;
+  padding: 0.75rem 1rem;
+  position: fixed;
+  top: 0;
+  transform: translateY(-150%);
+  z-index: 100;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 body {
   background:
     radial-gradient(circle at 85% 8%, rgba(245, 189, 56, 0.16), transparent 28rem),
@@ -78,4 +94,17 @@ a {
 .focus-ring:focus-visible {
   outline: 3px solid var(--sun);
   outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

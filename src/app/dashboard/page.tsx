@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   BookOpen,
+  Bell,
   BriefcaseBusiness,
   Leaf,
   LogOut,
@@ -13,6 +14,12 @@ import {
   UserRound,
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  loadLiveBooks,
+  loadLiveProduce,
+  loadLiveWork,
+} from "@/lib/supabase/marketplaces";
+import type { NotificationRow } from "@/lib/supabase/database.types";
 import {
   initialWorkDemoState,
   WORK_DEMO_STORAGE_KEY,
@@ -35,6 +42,16 @@ type DemoProfile = {
   area?: string;
   language: string;
   capabilities: string[];
+  averageRating?: number;
+  completedExchanges?: number;
+  fulfilledDonations?: number;
+};
+
+type PendingReview = {
+  activityId: string;
+  revieweeId: string;
+  revieweeName: string;
+  domain: string;
 };
 
 const defaultProfile: DemoProfile = {
@@ -52,6 +69,10 @@ export default function DashboardPage() {
     useState<ProduceDemoState>(initialProduceDemoState);
   const [booksState, setBooksState] =
     useState<BooksDemoState>(initialBooksDemoState);
+  const [dataMode, setDataMode] = useState<"demo" | "live">("demo");
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
+  const [dashboardMessage, setDashboardMessage] = useState("");
 
   useEffect(() => {
     const savedProfile = localStorage.getItem("jeevandwaar-demo-profile");
@@ -91,13 +112,38 @@ export default function DashboardPage() {
       if (!user) return;
       const { data: saved } = await supabase
         .from("profiles")
-        .select("display_name, city, area, preferred_language")
+        .select("*")
         .eq("id", user.id)
         .maybeSingle();
-      const { data: capabilities } = await supabase
-        .from("user_capabilities")
-        .select("capability")
-        .eq("user_id", user.id);
+      const [
+        capabilitiesResult,
+        liveWork,
+        liveProduce,
+        liveBooks,
+        notificationResult,
+        activityResult,
+        reviewResult,
+        profilesResult,
+      ] = await Promise.all([
+        supabase
+          .from("user_capabilities")
+          .select("capability")
+          .eq("user_id", user.id),
+        loadLiveWork(),
+        loadLiveProduce(),
+        loadLiveBooks(),
+        supabase
+          .from("notifications")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(8),
+        supabase
+          .from("activity_records")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("reviews").select("*").eq("reviewer_id", user.id),
+        supabase.from("profiles").select("*"),
+      ]);
 
       if (saved) {
         setProfile({
@@ -106,8 +152,45 @@ export default function DashboardPage() {
           area: saved.area ?? undefined,
           language: saved.preferred_language,
           capabilities:
-            capabilities?.map((item: { capability: string }) => item.capability) ?? [],
+            capabilitiesResult.data?.map((item) => item.capability) ?? [],
+          averageRating: saved.average_rating,
+          completedExchanges: saved.completed_exchanges,
+          fulfilledDonations: saved.fulfilled_donations,
         });
+        setWorkState(liveWork);
+        setProduceState(liveProduce);
+        setBooksState(liveBooks);
+        setDataMode("live");
+        setNotifications(notificationResult.data ?? []);
+
+        const reviewed = new Set(
+          (reviewResult.data ?? []).map((review) => review.activity_id),
+        );
+        const names = new Map(
+          (profilesResult.data ?? []).map((item) => [
+            item.id,
+            item.display_name,
+          ]),
+        );
+        setPendingReviews(
+          (activityResult.data ?? [])
+            .filter((activity) => !reviewed.has(activity.id))
+            .map((activity) => {
+              const revieweeId =
+                activity.actor_id === user.id
+                  ? activity.counterparty_id
+                  : activity.actor_id;
+              return revieweeId
+                ? {
+                    activityId: activity.id,
+                    revieweeId,
+                    revieweeName: names.get(revieweeId) ?? "Community member",
+                    domain: activity.domain,
+                  }
+                : null;
+            })
+            .filter((item): item is PendingReview => item !== null),
+        );
       }
     }
 
@@ -148,8 +231,33 @@ export default function DashboardPage() {
     localStorage.removeItem("jeevandwaar-demo-profile");
     const supabase = getSupabaseBrowserClient();
     if (supabase) await supabase.auth.signOut();
+    await fetch("/api/demo/session", { method: "DELETE" });
+    document.cookie = "jeevandwaar-demo=; path=/; max-age=0; SameSite=Lax";
     router.push("/");
     router.refresh();
+  }
+
+  async function submitReview(review: PendingReview, rating: number) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from("reviews").insert({
+      reviewer_id: user.id,
+      reviewee_id: review.revieweeId,
+      activity_id: review.activityId,
+      rating,
+    });
+    if (error) {
+      setDashboardMessage(error.message);
+      return;
+    }
+    setPendingReviews((current) =>
+      current.filter((item) => item.activityId !== review.activityId),
+    );
+    setDashboardMessage("Review recorded. The public rating was recalculated.");
   }
 
   const cards = [
@@ -186,6 +294,9 @@ export default function DashboardPage() {
             {profile.area ? `${profile.area}, ` : ""}
             {profile.city} · {profile.language === "te" ? "తెలుగు" : "English"}
           </p>
+          <p className="mt-3 w-fit rounded-full bg-[#eef7f1] px-3 py-1 text-xs font-bold text-[#11663b]">
+            {dataMode === "live" ? "Live Supabase account" : "Browser demo"}
+          </p>
         </div>
         <button
           className="focus-ring inline-flex items-center justify-center gap-2 rounded-full border border-[#c9d7d1] bg-white px-5 py-3 text-sm font-bold"
@@ -195,6 +306,15 @@ export default function DashboardPage() {
           <LogOut size={16} /> Sign out
         </button>
       </div>
+
+      {dashboardMessage && (
+        <p
+          aria-live="polite"
+          className="mt-6 rounded-xl bg-[#eef7f1] px-4 py-3 text-sm font-semibold text-[#11663b]"
+        >
+          {dashboardMessage}
+        </p>
+      )}
 
       <section className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -252,11 +372,24 @@ export default function DashboardPage() {
             <span
               className="rounded-full border border-[#b9ddc5] bg-[#eef7f1] px-4 py-2 text-sm font-bold text-[#11663b]"
             >
-              {summary.completedWork + summary.completedProduce + summary.completedBooks} completed exchanges
+              {dataMode === "live"
+                ? profile.completedExchanges ?? 0
+                : summary.completedWork +
+                  summary.completedProduce +
+                  summary.completedBooks}{" "}
+              completed exchanges
             </span>
             <span className="rounded-full border border-[#d4c2e7] bg-[#f7f1fb] px-4 py-2 text-sm font-bold text-[#62358c]">
-              {summary.fulfilledDonations} fulfilled donations
+              {dataMode === "live"
+                ? profile.fulfilledDonations ?? 0
+                : summary.fulfilledDonations}{" "}
+              fulfilled donations
             </span>
+            {dataMode === "live" && (
+              <span className="rounded-full border border-[#f0dca4] bg-[#fff9e8] px-4 py-2 text-sm font-bold text-[#765409]">
+                {profile.averageRating?.toFixed(1) ?? "0.0"} average rating
+              </span>
+            )}
           </div>
           <div className="mt-5 flex flex-wrap content-start gap-2">
             <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#557089]">
@@ -273,6 +406,76 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {dataMode === "live" && (
+        <section className="mt-10 grid gap-5 lg:grid-cols-2">
+          <div className="card p-7">
+            <div className="flex items-center gap-3">
+              <Bell className="text-[#177245]" size={22} />
+              <h2 className="text-xl font-bold">Notifications</h2>
+            </div>
+            <div className="mt-5 grid gap-3">
+              {notifications.length === 0 ? (
+                <p className="text-sm text-[#557089]">No notifications yet.</p>
+              ) : (
+                notifications.map((notification) => (
+                  <div
+                    className="rounded-xl border border-[#dce5e1] p-4"
+                    key={notification.id}
+                  >
+                    <p className="font-bold">{notification.title}</p>
+                    <p className="mt-1 text-sm text-[#557089]">
+                      {notification.body}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="card p-7">
+            <h2 className="text-xl font-bold">Pending community reviews</h2>
+            <p className="mt-2 text-sm leading-6 text-[#557089]">
+              Ratings are available only after verified completed activity.
+            </p>
+            <div className="mt-5 grid gap-3">
+              {pendingReviews.length === 0 ? (
+                <p className="text-sm text-[#557089]">
+                  No completed exchanges need a review.
+                </p>
+              ) : (
+                pendingReviews.map((review) => (
+                  <div
+                    className="rounded-xl border border-[#dce5e1] p-4"
+                    key={review.activityId}
+                  >
+                    <p className="font-bold">
+                      {review.revieweeName} · {review.domain}
+                    </p>
+                    <div
+                      aria-label={`Rate ${review.revieweeName}`}
+                      className="mt-3 flex gap-2"
+                      role="group"
+                    >
+                      {[1, 2, 3, 4, 5].map((rating) => (
+                        <button
+                          aria-label={`${rating} star review`}
+                          className="focus-ring grid size-9 place-items-center rounded-full border border-[#dce5e1] text-sm font-bold hover:border-[#177245] hover:text-[#177245]"
+                          key={rating}
+                          onClick={() => submitReview(review, rating)}
+                          type="button"
+                        >
+                          {rating}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+      )}
     </main>
   );
 }

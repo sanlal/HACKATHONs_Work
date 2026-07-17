@@ -8,7 +8,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run tests/unit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "audit:prod": "npm audit --omit=dev"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   },
   "repository": {
     "type": "git",
@@ -30,11 +38,13 @@
     "@supabase/supabase-js": "^2.110.5",
     "lucide-react": "^1.24.0",
     "next": "^16.2.10",
+    "openai": "^6.48.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
@@ -42,6 +52,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.10",
     "tailwindcss": "^4.3.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
   }
 }

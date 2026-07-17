@@ -20,6 +20,17 @@ import {
   type DemoJob,
   type WorkDemoState,
 } from "@/lib/work-demo";
+import { AiAssistant } from "@/components/ai/ai-assistant";
+import type { AiSuggestion } from "@/lib/ai/schemas";
+import {
+  acceptLiveApplication,
+  applyToLiveJob,
+  createLiveJob,
+  loadLiveWork,
+  transitionLiveJob,
+} from "@/lib/supabase/marketplaces";
+import { useMarketplaceSession } from "@/lib/supabase/use-marketplace-session";
+import { useLanguage } from "@/components/i18n/language-provider";
 
 const workerSkills = ["Event service", "Guest support", "Driving"];
 
@@ -40,8 +51,11 @@ function formatDateTime(value: string) {
 }
 
 export function WorkMarketplace() {
+  const { text } = useLanguage();
+  const session = useMarketplaceSession();
   const [role, setRole] = useState<"worker" | "employer">("worker");
   const [state, setState] = useState<WorkDemoState>(initialWorkDemoState);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [notice, setNotice] = useState("");
   const [title, setTitle] = useState("");
@@ -54,17 +68,44 @@ export function WorkMarketplace() {
   const [description, setDescription] = useState("");
 
   useEffect(() => {
+    if (session.loading) return;
+    if (session.mode === "live") {
+      loadLiveWork()
+        .then((liveState) => {
+          setState(liveState);
+          setLoading(false);
+        })
+        .catch((error: Error) => {
+          setNotice(error.message);
+          setLoading(false);
+        });
+      return;
+    }
+
     const saved = localStorage.getItem(WORK_DEMO_STORAGE_KEY);
-    if (!saved) return;
+    if (!saved) {
+      queueMicrotask(() => setLoading(false));
+      return;
+    }
 
     try {
       // Restoring browser-owned demo state after hydration is intentional.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setState(JSON.parse(saved) as WorkDemoState);
+      const restored = JSON.parse(saved) as WorkDemoState;
+      queueMicrotask(() => setState(restored));
     } catch {
       localStorage.removeItem(WORK_DEMO_STORAGE_KEY);
     }
-  }, []);
+    queueMicrotask(() => setLoading(false));
+  }, [session.loading, session.mode]);
+
+  async function reloadLive() {
+    setLoading(true);
+    try {
+      setState(await loadLiveWork());
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function commit(update: (current: WorkDemoState) => WorkDemoState) {
     setState((current) => {
@@ -75,17 +116,63 @@ export function WorkMarketplace() {
   }
 
   function resetDemo() {
+    if (session.mode === "live") {
+      void reloadLive();
+      setNotice("Live work data refreshed.");
+      return;
+    }
     localStorage.removeItem(WORK_DEMO_STORAGE_KEY);
     setState(initialWorkDemoState);
     setNotice("Demo reset to its starting state.");
   }
 
-  function createJob(event: FormEvent<HTMLFormElement>) {
+  function applyAiSuggestions(suggestions: AiSuggestion[]) {
+    const fields = Object.fromEntries(
+      suggestions.map((suggestion) => [suggestion.field, suggestion.value]),
+    );
+    if (fields.title) setTitle(fields.title);
+    if (fields.category) setCategory(fields.category);
+    if (fields.area) setArea(fields.area);
+    if (fields.payAmount) setPayAmount(fields.payAmount);
+    if (fields.workersNeeded) setWorkersNeeded(fields.workersNeeded);
+    if (fields.requirements) setRequirements(fields.requirements);
+    if (fields.description) setDescription(fields.description);
+    setNotice("AI suggestions applied. Review every field before publishing.");
+  }
+
+  async function createJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsedRequirements = requirements
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
+    if (session.mode === "live") {
+      try {
+        await createLiveJob({
+          userId: session.userId,
+          title: title.trim(),
+          category,
+          description: description.trim(),
+          city: session.profile.city,
+          area: area.trim(),
+          startsAt,
+          payAmount: Number(payAmount),
+          workersNeeded: Number(workersNeeded),
+          requirements: parsedRequirements,
+        });
+        await reloadLive();
+        setShowForm(false);
+        setTitle("");
+        setArea("");
+        setRequirements("");
+        setDescription("");
+        setNotice("Job published to the live marketplace.");
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Could not publish job.");
+      }
+      return;
+    }
+
     const job: DemoJob = {
       id: `job-${Date.now()}`,
       employerId: DEMO_EMPLOYER_ID,
@@ -124,7 +211,26 @@ export function WorkMarketplace() {
     setNotice("Job published. Switch to worker view to see it.");
   }
 
-  function applyToJob(jobId: string) {
+  async function applyToJob(jobId: string) {
+    if (session.mode === "live") {
+      const job = state.jobs.find((item) => item.id === jobId);
+      try {
+        await applyToLiveJob({
+          userId: session.userId,
+          jobId,
+          requirements: job?.requirements ?? [],
+          skills: session.workerProfile?.skills ?? workerSkills,
+        });
+        await reloadLive();
+        setNotice("Application sent through Supabase.");
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not send application.",
+        );
+      }
+      return;
+    }
+
     commit((current) => ({
       ...current,
       jobs: current.jobs.map((job) => {
@@ -162,7 +268,22 @@ export function WorkMarketplace() {
     setNotice("Application sent directly to the employer.");
   }
 
-  function acceptApplication(jobId: string, applicationId: string) {
+  async function acceptApplication(jobId: string, applicationId: string) {
+    if (session.mode === "live") {
+      try {
+        await acceptLiveApplication(applicationId);
+        await reloadLive();
+        setNotice(
+          "Application accepted. The job becomes assigned when all required positions are filled.",
+        );
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not select worker.",
+        );
+      }
+      return;
+    }
+
     commit((current) => ({
       ...current,
       jobs: current.jobs.map((job) =>
@@ -191,10 +312,27 @@ export function WorkMarketplace() {
     setNotice("Worker selected. The job is now assigned.");
   }
 
-  function transitionJob(
+  async function transitionJob(
     jobId: string,
     nextStatus: "in_progress" | "completed",
   ) {
+    if (session.mode === "live") {
+      try {
+        await transitionLiveJob(jobId, nextStatus);
+        await reloadLive();
+        setNotice(
+          nextStatus === "completed"
+            ? "Job completed and verified activity recorded."
+            : "Job marked as in progress.",
+        );
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not update job.",
+        );
+      }
+      return;
+    }
+
     commit((current) => {
       const job = current.jobs.find((item) => item.id === jobId);
       return {
@@ -223,12 +361,19 @@ export function WorkMarketplace() {
     );
   }
 
+  const activeUserId =
+    session.mode === "live" ? session.userId : DEMO_EMPLOYER_ID;
+  const activeWorkerId =
+    session.mode === "live" ? session.userId : DEMO_WORKER_ID;
   const visibleJobs = useMemo(
     () =>
       role === "employer"
-        ? state.jobs.filter((job) => job.employerId === DEMO_EMPLOYER_ID)
-        : state.jobs.filter((job) => job.employerId !== DEMO_EMPLOYER_ID || job.status !== "completed"),
-    [role, state.jobs],
+        ? state.jobs.filter((job) => job.employerId === activeUserId)
+        : state.jobs.filter(
+            (job) =>
+              job.employerId !== activeUserId || job.status !== "completed",
+          ),
+    [activeUserId, role, state.jobs],
   );
 
   return (
@@ -236,10 +381,10 @@ export function WorkMarketplace() {
       <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
         <div className="max-w-3xl">
           <p className="eyebrow mb-4">Interactive work marketplace</p>
-          <h1 className="section-title">Direct local work, from post to completion.</h1>
+          <h1 className="section-title">{text("workTitle")}</h1>
           <p className="mt-5 text-lg leading-8 text-[#557089]">
-            Switch roles to experience both sides of the same transparent
-            workflow. This demo persists in your browser.
+            Authenticated accounts use protected Supabase workflows. The
+            no-credential demo remains stored only in your browser.
           </p>
         </div>
         <button
@@ -247,7 +392,8 @@ export function WorkMarketplace() {
           onClick={resetDemo}
           type="button"
         >
-          <RefreshCw size={16} /> Reset demo
+          <RefreshCw size={16} />{" "}
+          {session.mode === "live" ? text("refreshLive") : text("resetDemo")}
         </button>
       </div>
 
@@ -255,6 +401,7 @@ export function WorkMarketplace() {
         <div className="inline-flex rounded-full border border-[#c9d7d1] bg-white p-1">
           {(["worker", "employer"] as const).map((item) => (
             <button
+              aria-pressed={role === item}
               className={`focus-ring rounded-full px-5 py-2.5 text-sm font-bold capitalize ${
                 role === item ? "bg-[#102a43] text-white" : "text-[#557089]"
               }`}
@@ -265,14 +412,24 @@ export function WorkMarketplace() {
               }}
               type="button"
             >
-              {item} view
+              {text(item === "worker" ? "workerView" : "employerView")}
             </button>
           ))}
         </div>
         <span className="text-sm text-[#557089]">
-          {role === "worker" ? "Signed in as Ravi Kumar" : "Signed in as Sree Convention Centre"}
+          {session.mode === "live"
+            ? `Live Supabase · ${session.profile.display_name}`
+            : role === "worker"
+              ? "Browser demo · Ravi Kumar"
+              : "Browser demo · Sree Convention Centre"}
         </span>
       </div>
+
+      {loading && (
+        <p className="mt-6 text-sm font-semibold text-[#557089]" role="status">
+          Loading work marketplace…
+        </p>
+      )}
 
       {notice && (
         <p
@@ -294,7 +451,16 @@ export function WorkMarketplace() {
           </button>
 
           {showForm && (
-            <form className="card mt-5 grid gap-5 p-6 md:grid-cols-2 md:p-8" onSubmit={createJob}>
+            <>
+              <div className="mt-5">
+                <AiAssistant
+                  domain="work"
+                  onApply={applyAiSuggestions}
+                  placeholder="Example: Tomorrow evening I need six dining helpers for a wedding function in Madhapur, ₹900 per shift."
+                  title="Describe the job naturally"
+                />
+              </div>
+              <form className="card mt-5 grid gap-5 p-6 md:grid-cols-2 md:p-8" onSubmit={createJob}>
               <label className="grid gap-2 text-sm font-bold md:col-span-2">
                 Job title
                 <input
@@ -386,7 +552,8 @@ export function WorkMarketplace() {
               >
                 Publish job
               </button>
-            </form>
+              </form>
+            </>
           )}
         </section>
       )}
@@ -395,7 +562,7 @@ export function WorkMarketplace() {
         <div className="grid content-start gap-5">
           {visibleJobs.map((job) => {
             const ownApplication = job.applications.find(
-              (application) => application.workerId === DEMO_WORKER_ID,
+              (application) => application.workerId === activeWorkerId,
             );
             return (
               <article className="card p-6 md:p-7" key={job.id}>
@@ -461,6 +628,27 @@ export function WorkMarketplace() {
                 {role === "employer" && (
                   <div className="mt-7 border-t border-[#dce5e1] pt-6">
                     <h3 className="font-bold">Applications ({job.applications.length})</h3>
+                    {job.applications.length > 0 && (
+                      <div className="mt-4">
+                        <AiAssistant
+                          context={JSON.stringify({
+                            jobRequirements: job.requirements,
+                            jobArea: job.area,
+                            payAmount: job.payAmount,
+                            applicant: {
+                              skills: job.applications[0].skills,
+                              deterministicScore:
+                                job.applications[0].matchScore,
+                            },
+                          })}
+                          domain="work"
+                          initialInput={`Explain the ${job.applications[0].matchScore}% match for ${job.applications[0].workerName} without making the hiring decision.`}
+                          mode="match"
+                          placeholder="Ask for a transparent match explanation."
+                          title="Explain this deterministic match"
+                        />
+                      </div>
+                    )}
                     {job.applications.length === 0 ? (
                       <p className="mt-3 text-sm text-[#557089]">No applications yet.</p>
                     ) : (

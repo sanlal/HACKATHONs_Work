@@ -23,6 +23,17 @@ import {
   type DemoProduceListing,
   type ProduceDemoState,
 } from "@/lib/produce-demo";
+import { AiAssistant } from "@/components/ai/ai-assistant";
+import type { AiSuggestion } from "@/lib/ai/schemas";
+import {
+  acceptLiveProduceBid,
+  confirmLiveProducePickup,
+  createLiveProduceListing,
+  loadLiveProduce,
+  placeLiveProduceBid,
+} from "@/lib/supabase/marketplaces";
+import { useMarketplaceSession } from "@/lib/supabase/use-marketplace-session";
+import { useLanguage } from "@/components/i18n/language-provider";
 
 const money = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -38,8 +49,11 @@ function statusClass(status: DemoProduceListing["status"]) {
 }
 
 export function ProduceMarketplace() {
+  const { text } = useLanguage();
+  const session = useMarketplaceSession();
   const [role, setRole] = useState<"farmer" | "buyer">("farmer");
   const [state, setState] = useState<ProduceDemoState>(initialProduceDemoState);
+  const [loading, setLoading] = useState(true);
   const [showListingForm, setShowListingForm] = useState(false);
   const [activeBidListing, setActiveBidListing] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -60,17 +74,44 @@ export function ProduceMarketplace() {
   const [bidNotes, setBidNotes] = useState("");
 
   useEffect(() => {
+    if (session.loading) return;
+    if (session.mode === "live") {
+      loadLiveProduce()
+        .then((liveState) => {
+          setState(liveState);
+          setLoading(false);
+        })
+        .catch((error: Error) => {
+          setNotice(error.message);
+          setLoading(false);
+        });
+      return;
+    }
+
     const saved = localStorage.getItem(PRODUCE_DEMO_STORAGE_KEY);
-    if (!saved) return;
+    if (!saved) {
+      queueMicrotask(() => setLoading(false));
+      return;
+    }
 
     try {
       // Restoring browser-owned demo state after hydration is intentional.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setState(JSON.parse(saved) as ProduceDemoState);
+      const restored = JSON.parse(saved) as ProduceDemoState;
+      queueMicrotask(() => setState(restored));
     } catch {
       localStorage.removeItem(PRODUCE_DEMO_STORAGE_KEY);
     }
-  }, []);
+    queueMicrotask(() => setLoading(false));
+  }, [session.loading, session.mode]);
+
+  async function reloadLive() {
+    setLoading(true);
+    try {
+      setState(await loadLiveProduce());
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function commit(update: (current: ProduceDemoState) => ProduceDemoState) {
     setState((current) => {
@@ -81,14 +122,62 @@ export function ProduceMarketplace() {
   }
 
   function resetDemo() {
+    if (session.mode === "live") {
+      void reloadLive();
+      setNotice("Live produce data refreshed.");
+      return;
+    }
     localStorage.removeItem(PRODUCE_DEMO_STORAGE_KEY);
     setState(initialProduceDemoState);
     setActiveBidListing(null);
     setNotice("Produce demo reset to its starting state.");
   }
 
-  function createListing(event: FormEvent<HTMLFormElement>) {
+  function applyAiSuggestions(suggestions: AiSuggestion[]) {
+    const fields = Object.fromEntries(
+      suggestions.map((suggestion) => [suggestion.field, suggestion.value]),
+    );
+    if (fields.crop) setCrop(fields.crop);
+    if (fields.variety) setVariety(fields.variety);
+    if (fields.quantity) setQuantity(fields.quantity);
+    if (fields.grade) setGrade(fields.grade);
+    if (fields.expectedPrice) setExpectedPrice(fields.expectedPrice);
+    if (fields.area) setArea(fields.area);
+    if (fields.pickupNotes) setPickupNotes(fields.pickupNotes);
+    setNotice("AI suggestions applied. Review every field before publishing.");
+  }
+
+  async function createListing(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (session.mode === "live") {
+      try {
+        await createLiveProduceListing({
+          userId: session.userId,
+          crop: crop.trim(),
+          variety: variety.trim(),
+          quantity: Number(quantity),
+          unit,
+          grade: grade.trim(),
+          harvestDate,
+          expectedPrice: Number(expectedPrice),
+          city: session.profile.city,
+          area: area.trim(),
+          pickupNotes: pickupNotes.trim(),
+        });
+        await reloadLive();
+        setShowListingForm(false);
+        setVariety("");
+        setArea("");
+        setPickupNotes("");
+        setNotice("Produce published to the live marketplace.");
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not list produce.",
+        );
+      }
+      return;
+    }
+
     const listing: DemoProduceListing = {
       id: `produce-${Date.now()}`,
       farmerId: DEMO_FARMER_ID,
@@ -135,9 +224,29 @@ export function ProduceMarketplace() {
     setPickupNotes("");
   }
 
-  function placeBid(event: FormEvent<HTMLFormElement>) {
+  async function placeBid(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeBidListing) return;
+    if (session.mode === "live") {
+      try {
+        await placeLiveProduceBid({
+          listingId: activeBidListing,
+          quantity: Number(bidQuantity),
+          pricePerUnit: Number(bidPrice),
+          pickupDate,
+          notes: bidNotes.trim(),
+        });
+        await reloadLive();
+        setActiveBidListing(null);
+        setBidNotes("");
+        setNotice("Offer sent through the guarded Supabase workflow.");
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not place offer.",
+        );
+      }
+      return;
+    }
 
     const bid: DemoBid = {
       id: `produce-bid-${Date.now()}`,
@@ -178,7 +287,20 @@ export function ProduceMarketplace() {
     setNotice("Offer sent directly to the farmer.");
   }
 
-  function acceptBid(listingId: string, bidId: string) {
+  async function acceptBid(listingId: string, bidId: string) {
+    if (session.mode === "live") {
+      try {
+        await acceptLiveProduceBid(bidId);
+        await reloadLive();
+        setNotice("Offer accepted. Both participants must confirm pickup.");
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not accept offer.",
+        );
+      }
+      return;
+    }
+
     commit((current) => ({
       ...current,
       listings: current.listings.map((listing) =>
@@ -210,7 +332,22 @@ export function ProduceMarketplace() {
     setNotice("Offer accepted. Pickup details are now reserved.");
   }
 
-  function completePickup(listingId: string) {
+  async function completePickup(listingId: string) {
+    if (session.mode === "live") {
+      try {
+        await confirmLiveProducePickup(listingId);
+        await reloadLive();
+        setNotice(
+          "Your pickup confirmation was recorded. Completion occurs after both participants confirm.",
+        );
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "Could not confirm pickup.",
+        );
+      }
+      return;
+    }
+
     commit((current) => {
       const listing = current.listings.find((item) => item.id === listingId);
       const accepted = listing?.bids.find(
@@ -237,12 +374,24 @@ export function ProduceMarketplace() {
     setNotice("Pickup confirmed and transaction activity recorded.");
   }
 
+  const activeFarmerId =
+    session.mode === "live" ? session.userId : DEMO_FARMER_ID;
   const visibleListings = useMemo(
     () =>
       role === "farmer"
-        ? state.listings.filter((listing) => listing.farmerId === DEMO_FARMER_ID)
-        : state.listings.filter((listing) => listing.status === "open"),
-    [role, state.listings],
+        ? state.listings.filter(
+            (listing) => listing.farmerId === activeFarmerId,
+          )
+        : state.listings.filter(
+            (listing) =>
+              listing.status === "open" ||
+              listing.bids.some(
+                (bid) =>
+                  bid.buyerId ===
+                  (session.mode === "live" ? session.userId : DEMO_BUYER_ID),
+              ),
+          ),
+    [activeFarmerId, role, session, state.listings],
   );
 
   return (
@@ -250,7 +399,7 @@ export function ProduceMarketplace() {
       <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
         <div className="max-w-3xl">
           <p className="eyebrow mb-4">Interactive farmer direct market</p>
-          <h1 className="section-title">Compare the whole offer—not only one number.</h1>
+          <h1 className="section-title">{text("produceTitle")}</h1>
           <p className="mt-5 text-lg leading-8 text-[#557089]">
             Farmers compare unit price, quantity, total value and pickup date
             before accepting one direct buyer offer.
@@ -261,7 +410,8 @@ export function ProduceMarketplace() {
           onClick={resetDemo}
           type="button"
         >
-          <RefreshCw size={16} /> Reset demo
+          <RefreshCw size={16} />{" "}
+          {session.mode === "live" ? text("refreshLive") : text("resetDemo")}
         </button>
       </div>
 
@@ -269,6 +419,7 @@ export function ProduceMarketplace() {
         <div className="inline-flex rounded-full border border-[#c9d7d1] bg-white p-1">
           {(["farmer", "buyer"] as const).map((item) => (
             <button
+              aria-pressed={role === item}
               className={`focus-ring rounded-full px-5 py-2.5 text-sm font-bold capitalize ${
                 role === item ? "bg-[#177245] text-white" : "text-[#557089]"
               }`}
@@ -280,16 +431,24 @@ export function ProduceMarketplace() {
               }}
               type="button"
             >
-              {item} view
+              {text(item === "farmer" ? "farmerView" : "buyerView")}
             </button>
           ))}
         </div>
         <span className="text-sm text-[#557089]">
-          {role === "farmer"
-            ? "Signed in as Ramesh Naik"
-            : "Signed in as Sri Balaji Food Traders"}
+          {session.mode === "live"
+            ? `Live Supabase · ${session.profile.display_name}`
+            : role === "farmer"
+              ? "Browser demo · Ramesh Naik"
+              : "Browser demo · Sri Balaji Food Traders"}
         </span>
       </div>
+
+      {loading && (
+        <p className="mt-6 text-sm font-semibold text-[#557089]" role="status">
+          Loading produce marketplace…
+        </p>
+      )}
 
       {notice && (
         <p
@@ -311,7 +470,16 @@ export function ProduceMarketplace() {
           </button>
 
           {showListingForm && (
-            <form className="card mt-5 grid gap-5 p-6 md:grid-cols-2 md:p-8" onSubmit={createListing}>
+            <>
+              <div className="mt-5">
+                <AiAssistant
+                  domain="produce"
+                  onApply={applyAiSuggestions}
+                  placeholder="Example: I harvested 80 quintals of fine paddy near Miryalaguda. Farm pickup is available."
+                  title="Describe your harvest by voice or text"
+                />
+              </div>
+              <form className="card mt-5 grid gap-5 p-6 md:grid-cols-2 md:p-8" onSubmit={createListing}>
               <label className="grid gap-2 text-sm font-bold">
                 Crop
                 <input
@@ -406,7 +574,8 @@ export function ProduceMarketplace() {
               >
                 Publish produce listing
               </button>
-            </form>
+              </form>
+            </>
           )}
         </section>
       )}
@@ -564,6 +733,30 @@ export function ProduceMarketplace() {
                 {role === "farmer" && (
                   <div className="border-t border-[#dce5e1] p-6 md:p-7">
                     <h3 className="font-bold">Compare buyer offers</h3>
+                    {listing.bids.length > 0 && (
+                      <div className="mt-4">
+                        <AiAssistant
+                          context={JSON.stringify({
+                            crop: listing.crop,
+                            unit: listing.unit,
+                            demoBenchmark: listing.benchmark,
+                            offers: listing.bids.map((bid) => ({
+                              buyer: bid.buyerName,
+                              quantity: bid.quantity,
+                              pricePerUnit: bid.pricePerUnit,
+                              calculatedTotal: bidTotal(bid),
+                              pickupDate: bid.pickupDate,
+                              terms: bid.notes,
+                            })),
+                          })}
+                          domain="produce"
+                          initialInput="Explain the tradeoffs between these buyer offers without choosing one for me."
+                          mode="bid"
+                          placeholder="Ask GPT-5.6 to explain price, quantity, total and pickup tradeoffs."
+                          title="Explain these offers"
+                        />
+                      </div>
+                    )}
                     {listing.bids.length === 0 ? (
                       <p className="mt-3 text-sm text-[#557089]">No buyer offers yet.</p>
                     ) : (
