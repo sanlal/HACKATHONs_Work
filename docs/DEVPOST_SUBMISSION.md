@@ -1,7 +1,5 @@
 # Devpost submission draft
 
-Replace every `[ADD ...]` placeholder before submission.
-
 ## Project name
 
 JeevanDwaar
@@ -124,5 +122,5 @@ Public video URL: `[ADD YOUTUBE OR VIMEO URL]`
 
 - Track: Apps for Your Life
 - License: MIT
-- Codex feedback/session ID: `[ADD REQUIRED SESSION ID]`
-- Team members: `[ADD NAMES]`
+- Codex feedback/session ID: ``
+- Team members: `Ramavath Santhosh`
