@@ -1,73 +1,124 @@
-# Three-minute demo script
+# JeevanDwaar demo video narration
+
+Target duration: **2 minutes 45 seconds**.
 
 ## Before recording
 
-- Deploy using `docs/DEPLOYMENT.md`.
-- Confirm the UI shows **Live GPT-5.6**.
-- Prepare one owner account and one counterparty account.
-- Reset browser demo state if recording the no-login journey.
+- Run the application and open `http://localhost:3001`.
 - Record at 1080p with browser zoom near 100%.
-- Never display API keys, passwords or private account dashboards.
+- Reset each marketplace to its starting demo state.
+- Hide bookmarks, notifications, API keys and personal information.
+- Use a clear microphone and keep the final YouTube video under three minutes.
+- If an OpenAI key is configured, confirm the UI shows **Live GPT-5.6**.
+  Otherwise, describe the visible **Safe fallback** honestly.
 
-## 0:00–0:20 — The problem
+## 0:00–0:20 — Introduction
 
-Open `/`.
+**Screen actions**
 
-> A local worker may not know where tomorrow's work is. A farmer may see only
-> one buyer's price. A useful schoolbook may sit unused. JeevanDwaar is one
-> multilingual doorway connecting people directly to work, markets and
-> learning resources.
+1. Show the home page.
+2. Slowly scroll through the JeevanDwaar community image.
 
-## 0:20–1:05 — Local work
+**Narration**
 
-Open `/work` in employer view.
+> Local workers struggle to discover nearby opportunities, farmers often
+> receive offers that are difficult to compare, and useful books do not always
+> reach another learner. JeevanDwaar is one multilingual doorway connecting
+> these communities directly through work, produce and book marketplaces.
 
-1. Describe a function-hall job naturally.
-2. Generate GPT-5.6 suggestions.
-3. Apply them and emphasize that every field remains editable.
-4. Show a worker application and deterministic score.
-5. Generate the match explanation.
+## 0:20–0:35 — Enter the interactive demo
 
-> The score is calculated in code from declared skills. GPT-5.6 explains the
-> allowed factors; it never selects the worker.
+**Screen actions**
 
-## 1:05–1:45 — Farmer direct market
+1. Click **Open your doorway**.
+2. Click **Enter interactive demo**.
+3. Show the dashboard briefly.
 
-Open `/produce`.
+**Narration**
 
-1. Show a harvest listing and dated benchmark disclaimer.
-2. Compare two bids by unit price, quantity, total value and pickup date.
-3. Generate the GPT-5.6 offer explanation.
-4. Accept an offer and mention mutual pickup confirmation.
+> Judges can explore the complete product without creating an account. The
+> demonstration uses fictional browser-persisted data, so no external database
+> credentials are required.
 
-> JeevanDwaar does not invent mandi prices or automatically choose a buyer.
-> The farmer sees the complete tradeoff and decides.
+## 0:35–1:10 — Local work
 
-## 1:45–2:15 — Books
+**Screen actions**
 
-Open `/books`.
+1. Open **Local work**.
+2. Select **Employer view**.
+3. Open **Post a job**.
+4. Enter a natural-language function-hall job description.
+5. Click **Assist with GPT-5.6** and apply the editable suggestions.
+6. Show the seeded application, deterministic score and match explanation.
 
-1. Show sell and free-donation modes.
-2. Open the Class 10 donation and its learner requests.
-3. Select a recipient.
-4. Explain that both sides confirm handover before trust changes.
+**Narration**
 
-## 2:15–2:35 — Multilingual and trust
+> Employers can describe work naturally in English or Telugu. GPT-5.6 converts
+> the description into editable listing fields, but the employer reviews every
+> value before publishing. Worker-match scores are calculated deterministically
+> from declared skills. GPT-5.6 explains the allowed factors without selecting
+> the worker.
 
-Switch the header to Telugu and show Telugu AI input. Open `/dashboard`.
+## 1:10–1:40 — Farmer direct market
 
-> Trust is earned from completed platform activity and reviews—not claimed
-> government verification.
+**Screen actions**
 
-Show notifications, completed exchanges, donations and capabilities.
+1. Open **Farm market** in farmer view.
+2. Show the Paddy listing and its two buyer offers.
+3. Highlight unit price, quantity, total value and pickup date.
+4. Generate the offer explanation.
+5. Point to the demonstration benchmark disclaimer.
 
-## 2:35–3:00 — Close
+**Narration**
 
-Return to `/`.
+> Farmers compare the complete offer, not only the highest unit price.
+> JeevanDwaar calculates totals in application code, while GPT-5.6 explains the
+> tradeoffs. Benchmarks are clearly labeled, the model never invents market
+> prices, and the farmer always chooses the buyer.
 
-> JeevanDwaar combines GPT-5.6 assistance with deterministic calculations,
-> protected Supabase workflows and human confirmation. It makes opportunity
-> easier to describe, compare and act on—without hiding the decision from the
-> person whose livelihood depends on it.
+## 1:40–2:05 — Books for all
 
-Show the public repository, MIT license and live URL.
+**Screen actions**
+
+1. Open **Books**.
+2. Select **Owner view**.
+3. Show the Class 10 free-donation listing.
+4. Show its learner requests and select a recipient.
+
+**Narration**
+
+> People can sell affordable second-hand books or donate them directly. Owners
+> see transparent requests and select the recipient themselves. Both
+> participants confirm the handover before completed activity contributes to
+> community trust.
+
+## 2:05–2:25 — Language and trust
+
+**Screen actions**
+
+1. Change the header language to Telugu.
+2. Open the dashboard.
+3. Show capabilities, completed exchanges and trust signals.
+
+**Narration**
+
+> JeevanDwaar supports English and Telugu navigation and AI assistance. Trust
+> comes from completed platform activity and community reviews—not unsupported
+> identity or government-verification claims.
+
+## 2:25–2:45 — Codex and closing
+
+**Screen actions**
+
+1. Return to the home page.
+2. End on the project name and community image.
+
+**Narration**
+
+> Codex accelerated architecture design, database workflows, GPT-5.6
+> integration, testing, accessibility and submission preparation. Key product
+> decisions remained human-controlled: transparent calculations, truthful
+> fallbacks and confirmation before every important action. JeevanDwaar opens
+> one trusted doorway to earning, fairer markets and learning. Thank you.
+
+Only use the Codex narration if it accurately reflects the development process.
