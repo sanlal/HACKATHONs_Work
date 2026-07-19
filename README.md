@@ -223,12 +223,13 @@ npm run start
 
 ## Repository and submission
 
-- Repository: <https://github.com/sanlal/HACKATHONs_Work>
+- Repository: https://github.com/sanlal/HACKATHONs_Work
 - Track: Apps for Your Life
 - License: MIT
-- Demo: follow [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), then add the public URL
-- Video: record [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md), then add the public URL
+- Demo: I used localhost and recorded the demo
+- Video: https://youtu.be/eSHSxXXCnE4
 - Codex `/feedback` session ID: will be added to the Devpost submission
+- Development was completed in Cursor using GPT-5.6 and Codex models. No OpenAI /feedback session ID was generated.
 
 ## License
 
